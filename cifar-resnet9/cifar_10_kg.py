@@ -106,6 +106,7 @@ We'll define a CNN (Convolutional Neural Networ)
 
 # importing libraries
 import torch.nn as nn
+print(nn.ReLU())
 import torch.nn.functional as F
 
 """Extending nn.Module"""
