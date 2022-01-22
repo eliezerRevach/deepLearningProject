@@ -3,3 +3,4 @@ cifar-resnet9/data/**
 cifar-resnet9/*.tgz
 cifar-resnet9/*.pth
 testing_stuff/data/**
+testing_stuff/cifar10.tgz
