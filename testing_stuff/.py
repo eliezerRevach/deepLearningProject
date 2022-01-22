@@ -34,35 +34,52 @@ import torch.nn as nn
 
 """We'll download the images in PNG format from [this page](https://course.fast.ai/datasets), using some helper functions from the `torchvision` and `tarfile` packages."""
 
+
+
+#what number the paramter start and end
+fromI=1
+toI=100
+
+fromL=0.1
+toL=1000
+
+fromQ=0.1
+toQ=100
+
+LogarithmINC=True#insted of incresing when checking parameters with a constant , will will get to the to value useing geometric progression
+
+
+#size of splits will, example fromI=1 toI=3,SIZEI=3 then i will check 1,2,3
+SIZEI=3#how many i to check
+SIZEL=5#how many l to check
+SIZEQ=5#how many q to check
+checkCertainParams=False
+
+
+#if the one above is true set the parameters u want to check
 L=0#0.1->2
 Q=1 #0.01->0.2
 P=2 #NO CHANGE
 Z=10# NO CHANGE
 I=1#1->3
 
-fromI=1
-toI=3
-
-fromL=0.1
-toL=2
-
-fromQ=0.01
-toQ=0.2
-
-
-SIZEI=3#how many i to check
-SIZEL=5#how many l to check
-SIZEQ=5#how many q to check
 
 #funcation  :  x + (L / (Q * (x + I) ** P + Z)) - (L / (Q * (x - I) ** P + Z)):https://www.desmos.com/calculator/0hiyjyun2f (move points to play with the parameters)
-train_running_size=128
-val_running_Size=256
+train_running_size=1024#train size of data
+val_running_Size=2048#val size of data
+setAll=False# will train and predict useing all the data ignoring the 2 above
+batch_size = 256 #hyper parameter
 
-num_epochs = 16
+num_epochs = 4
 opt_func = torch.optim.Adam
 lr = 0.001
 
-
+if(checkCertainParams):
+    L0=L
+    Q0=Q
+    I0=I
+    Z0=Z
+    P0=P
 
 def dynamic(input):
     '''
@@ -72,13 +89,25 @@ def dynamic(input):
     #b = input.detach().numpy()
     x=input
     x[x<0]=0
-    # x=x+(L/Q*torch.abs(x+I)**P+Z)-(L/Q*torch.abs(x-I)**P+Z)
-    #x = x + (1 / 1 * torch.abs(x + 1) ** 1 + 1) - (1 / 1 * torch.abs(x - 1) ** 1 + 1)
-    # x=x+60/(torch.abs(x-1)+10)+60/(torch.abs(x+1)+10)
-    x = x + (L / (Q * (x + I) ** P + Z)) - (L / (Q * (x - I) ** P + Z))
-    # x = x + (1/ (0.1325* (x + 1) ** P + Z)) - (1  / (0.1325 * (x - 1) ** P + Z))
+
+    # L0=1.24
+    # Q0=0.01
+    # I0=2.333333333
+    #
+    # Z0=Z
+    # P0=P
+    #
+    #
+
+
+    if (checkCertainParams):
+        x = x + (L0 / (Q0 * (x + I0) ** P0 + Z0)) - (L / (Q0 * (x - I0) ** P0 + Z0))
+    else:
+        x = x + (L / (Q * (x + I) ** P + Z)) - (L / (Q * (x - I) ** P + Z))
+
+
+
     return x
-    #return  1/(torch.exp(-1*input,out=None)+1)# use torch.sigmoid to make sure that we created the most efficient implemetation based on builtin PyTorch functions
 
 # create a class wrapper from PyTorch nn.Module, so
 # the function now can be easily used in models
@@ -113,6 +142,20 @@ class Dynamic(nn.Module):
         return dynamic(input) # simply apply already implemented SiLU
 
 
+
+def relu(input):
+    x=input
+    x[x<0]=0
+    return x
+
+class RELU(nn.Module):
+    def __init__(self):
+        super().__init__() # init the base class
+    def forward(self, input):
+        return relu(input) # simply apply already implemented SiLU
+
+
+
 def setParams(L_,Q_,P_,Z_,I_):
     global L
     global Q
@@ -128,7 +171,7 @@ def setParams(L_,Q_,P_,Z_,I_):
 
     pass
 
-activation_function = Dynamic()
+activation_function = RELU()
 print("activation_function set")
 
 #download dataset
@@ -181,11 +224,13 @@ len(train_ds), len(val_ds)
 
 from torch.utils.data.dataloader import DataLoader
 
-batch_size = 10 #hyper parameter
+
 
 #Loading Data
 print("cut data")
-
+if(setAll):
+    train_running_size=len(train_ds)
+    val_running_Size=len(val_ds)
 train_ds, empty=random_split(train_ds, [train_running_size, len(train_ds)-train_running_size])
 val_ds, empty=random_split(val_ds,[val_running_Size,len(val_ds)-val_running_Size])
 train_dl = DataLoader(train_ds, batch_size, shuffle = True, num_workers = 2, pin_memory = True)
@@ -349,7 +394,7 @@ def fit(epochs, lr, model, train_loader, val_loader, opt_func=torch.optim.SGD):
         # Validation phase
         result = evaluate(model, val_loader)
         result['train_loss'] = torch.stack(train_losses).mean().item()
-        # model.epoch_end(epoch, result)
+        model.epoch_end(epoch, result)
         history.append(result)
     return history
 
@@ -372,8 +417,15 @@ bestI=0
 bestQ=0
 bestL=0
 
-
+print("RELU:")
 tic = time.time()
+history = fit(num_epochs, lr, model, train_dl, val_dl, opt_func)
+toc = time.time()
+print("time took:", toc - tic)
+score = history[len(history) - 1]["val_acc"]
+print(score," final score of relu")
+
+activation_function = Dynamic()
 
 for i in range(SIZEI):
     for l in range(SIZEL):
@@ -381,13 +433,22 @@ for i in range(SIZEI):
             model = Cifar10CnnModel()
             to_device(model, device)
             evaluate(model, val_dl)
+
             I_=fromI+i*(toI-fromI)/SIZEI
             Q_=fromQ+q*(toQ-fromQ)/SIZEQ
             L_=fromL+l*(toL-fromL)/SIZEL
 
+            if(LogarithmINC):
+                I_=((toI/fromI**(1/SIZEI))**i)*fromI
+                Q_=((toQ/fromQ**(1/SIZEQ))**q)*fromQ
+                L_=((toL/fromL**(1/SIZEL))**l)*fromL
+                pass
             setParams(L_,Q_,P,Z,I_)
+            tic = time.time()
             history = fit(num_epochs, lr, model, train_dl, val_dl, opt_func)
-            score=history[4]["val_acc"]
+            toc = time.time()
+            print("time took:", toc - tic)
+            score=history[len(history)-1]["val_acc"]
             if score>bestScore:
                 bestI = I_
                 bestQ = Q_
@@ -395,9 +456,8 @@ for i in range(SIZEI):
                 bestScore=score
             print(score,"with i=",I_,"q=",Q_,"l=",L_)
 
-    toc = time.time()
 
-print("time took:",toc - tic)
+
 print("best score:",bestScore,"with i=",I_,"q=",Q_,"l=",L_)
 
 def plot_accuracies(history):
