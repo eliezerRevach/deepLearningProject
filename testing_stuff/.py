@@ -33,8 +33,7 @@ from torch.utils.data import random_split
 import torch.nn as nn
 
 """We'll download the images in PNG format from [this page](https://course.fast.ai/datasets), using some helper functions from the `torchvision` and `tarfile` packages."""
-
-
+#..............................our part...................................#
 
 #what number the paramter start and end
 fromI=1
@@ -48,29 +47,27 @@ toQ=100
 
 LogarithmINC=True#insted of incresing when checking parameters with a constant , will will get to the to value useing geometric progression
 
-
 #size of splits will, example fromI=1 toI=3,SIZEI=3 then i will check 1,2,3
 SIZEI=3#how many i to check
 SIZEL=5#how many l to check
 SIZEQ=5#how many q to check
-checkCertainParams=False
 
-
-#if the one above is true set the parameters u want to check
-L=0#0.1->2
-Q=1 #0.01->0.2
+checkCertainParams=True
+#if the one above is true set the parameters u want to check else it will igonre the values
+L=0.1#0.1->2
+Q=6.3095734448 #0.01->0.2
 P=2 #NO CHANGE
 Z=10# NO CHANGE
 I=1#1->3
 
 
 #funcation  :  x + (L / (Q * (x + I) ** P + Z)) - (L / (Q * (x - I) ** P + Z)):https://www.desmos.com/calculator/0hiyjyun2f (move points to play with the parameters)
-train_running_size=1024#train size of data
-val_running_Size=2048#val size of data
+train_running_size=50000#train size of data
+val_running_Size=512#val size of data
 setAll=False# will train and predict useing all the data ignoring the 2 above
 batch_size = 256 #hyper parameter
 
-num_epochs = 4
+num_epochs = 16
 opt_func = torch.optim.Adam
 lr = 0.001
 
@@ -82,66 +79,19 @@ if(checkCertainParams):
     P0=P
 
 def dynamic(input):
-    '''
-    Applies the Sigmoid Linear Unit (SiLU) function element-wise:
-        SiLU(x) = x * sigmoid(x)
-    '''
-    #b = input.detach().numpy()
     x=input
     x[x<0]=0
-
-    # L0=1.24
-    # Q0=0.01
-    # I0=2.333333333
-    #
-    # Z0=Z
-    # P0=P
-    #
-    #
-
-
     if (checkCertainParams):
         x = x + (L0 / (Q0 * (x + I0) ** P0 + Z0)) - (L / (Q0 * (x - I0) ** P0 + Z0))
     else:
         x = x + (L / (Q * (x + I) ** P + Z)) - (L / (Q * (x - I) ** P + Z))
-
-
-
     return x
 
-# create a class wrapper from PyTorch nn.Module, so
-# the function now can be easily used in models
-
-
 class Dynamic(nn.Module):
-    '''
-    Applies the Sigmoid Linear Unit (SiLU) function element-wise:
-        SiLU(x) = x * sigmoid(x)
-    Shape:
-        - Input: (N, *) where * means, any number of additional
-          dimensions
-        - Output: (N, *), same shape as the input
-    References:
-        -  Related paper:
-        https://arxiv.org/pdf/1606.08415.pdf
-    Examples:
-        >>> m = dynamic()
-        >>> input = torch.randn(2)
-        >>> output = m(input)
-    '''
     def __init__(self):
-        '''
-        Init method.
-        '''
         super().__init__() # init the base class
-
     def forward(self, input):
-        '''
-        Forward pass of the function.
-        '''
         return dynamic(input) # simply apply already implemented SiLU
-
-
 
 def relu(input):
     x=input
@@ -153,8 +103,6 @@ class RELU(nn.Module):
         super().__init__() # init the base class
     def forward(self, input):
         return relu(input) # simply apply already implemented SiLU
-
-
 
 def setParams(L_,Q_,P_,Z_,I_):
     global L
@@ -168,11 +116,13 @@ def setParams(L_,Q_,P_,Z_,I_):
     Z = Z_
     I = I_
 
-
     pass
 
 activation_function = RELU()
 print("activation_function set")
+
+#..............................end of our part...................................#
+
 
 #download dataset
 dataset_url = 'https://s3.amazonaws.com/fast-ai-imageclas/cifar10.tgz'
@@ -227,12 +177,14 @@ from torch.utils.data.dataloader import DataLoader
 
 
 #Loading Data
+#..............................our part...................................#
 print("cut data")
 if(setAll):
     train_running_size=len(train_ds)
     val_running_Size=len(val_ds)
 train_ds, empty=random_split(train_ds, [train_running_size, len(train_ds)-train_running_size])
 val_ds, empty=random_split(val_ds,[val_running_Size,len(val_ds)-val_running_Size])
+#..............................end of our part...................................#
 train_dl = DataLoader(train_ds, batch_size, shuffle = True, num_workers = 2, pin_memory = True)
 val_dl = DataLoader(val_ds, batch_size*2, num_workers = 2, pin_memory = True)
 
@@ -406,11 +358,15 @@ evaluate(model, val_dl)
 
 
 
+def plot_accuracies(history):
+  accuracies = [x['val_acc'] for x in history]
+  plt.plot(accuracies, '-x')
+  plt.xlabel('epoch')
+  plt.ylabel('accuracy')
+  plt.title('Accuracy vs. No. of epochs')
+  plt.show()
 
-
-fromI,toI
-fromL,toL
-fromQ,toQ
+#..............................our part...................................#
 
 bestScore=0
 bestI=0
@@ -426,6 +382,7 @@ score = history[len(history) - 1]["val_acc"]
 print(score," final score of relu")
 
 activation_function = Dynamic()
+plot_accuracies(history)
 
 for i in range(SIZEI):
     for l in range(SIZEL):
@@ -439,9 +396,9 @@ for i in range(SIZEI):
             L_=fromL+l*(toL-fromL)/SIZEL
 
             if(LogarithmINC):
-                I_=((toI/fromI**(1/SIZEI))**i)*fromI
-                Q_=((toQ/fromQ**(1/SIZEQ))**q)*fromQ
-                L_=((toL/fromL**(1/SIZEL))**l)*fromL
+                I_=(((toI/fromI)**(1/SIZEI))**i)*fromI
+                Q_=(((toQ/fromQ)**(1/SIZEQ))**q)*fromQ
+                L_=(((toL/fromL)**(1/SIZEL))**l)*fromL
                 pass
             setParams(L_,Q_,P,Z,I_)
             tic = time.time()
@@ -459,13 +416,8 @@ for i in range(SIZEI):
 
 
 print("best score:",bestScore,"with i=",I_,"q=",Q_,"l=",L_)
+#..............................end of our part...................................#
 
-def plot_accuracies(history):
-  accuracies = [x['val_acc'] for x in history]
-  plt.plot(accuracies, '-x')
-  plt.xlabel('epoch')
-  plt.ylabel('accuracy')
-  plt.title('Accuracy vs. No. of epochs')
 
 plot_accuracies(history)
 
