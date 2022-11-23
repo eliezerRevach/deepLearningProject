@@ -39,7 +39,26 @@ download_url(dataset_url, '.')
 
 # Extract from .tgz archive
 with tarfile.open('./cifar10.tgz', 'r:gz') as tar:
-  tar.extractall(path = './data')
+  def is_within_directory(directory, target):
+      
+      abs_directory = os.path.abspath(directory)
+      abs_target = os.path.abspath(target)
+  
+      prefix = os.path.commonprefix([abs_directory, abs_target])
+      
+      return prefix == abs_directory
+  
+  def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
+  
+      for member in tar.getmembers():
+          member_path = os.path.join(path, member.name)
+          if not is_within_directory(path, member_path):
+              raise Exception("Attempted Path Traversal in Tar File")
+  
+      tar.extractall(path, members, numeric_owner=numeric_owner) 
+      
+  
+  safe_extract(tar, path="./data")
 
 """dataset is extracted to `data/cifar10`. It contains two folders - `train` and `test` containing 50,000 and 10,000 images resp. Each of them contains 10 folders, one for each class of images."""
 
@@ -357,7 +376,26 @@ download_url(dataset_url, '.')
 
 #Extract from archive
 with tarfile.open('./cifar10.tgz', 'r:gz') as tar:
-  tar.extractall(path='./data')
+  def is_within_directory(directory, target):
+      
+      abs_directory = os.path.abspath(directory)
+      abs_target = os.path.abspath(target)
+  
+      prefix = os.path.commonprefix([abs_directory, abs_target])
+      
+      return prefix == abs_directory
+  
+  def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
+  
+      for member in tar.getmembers():
+          member_path = os.path.join(path, member.name)
+          if not is_within_directory(path, member_path):
+              raise Exception("Attempted Path Traversal in Tar File")
+  
+      tar.extractall(path, members, numeric_owner=numeric_owner) 
+      
+  
+  safe_extract(tar, path="./data")
     
 # Look into the data directory
 data_dir = './data/cifar10'
